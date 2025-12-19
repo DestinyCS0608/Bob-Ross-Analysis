@@ -49,7 +49,7 @@ The goal is to assess whether Bob Ross’s palette evolved meaningfully over tim
 
 ## Visual Examples
 
-*(See `/output/figures/` for full plots)*
+*(See `bob_ross_analysis.qmd` for full plots)*
 
 -   Color frequency bar chart
 -   Episode-level color heatmap
