@@ -195,17 +195,13 @@ ggplot(bob_ross_long %>% filter(used),
   labs(
     title = "Bob Ross Paintings: Color Usage by Episode",
     x = "Season",
-    y = "Color") +
+    y = "Color",
+caption = "Visualization style inspired by Connor Rothschild's Bob Ross Art Gallery") +
   theme_minimal() +
   theme(axis.text.x = element_text()) + 
   theme(panel.background = element_rect(fill = "#F5F5DC"),  # background of the plotting area
     plot.background = element_rect(fill = "#F5F5DC"),   # background around the plot
-    axis.text.x = element_text())+
-  ggplot(...) +
-  labs(
-    caption = "Visualization style inspired by Connor Rothschild's Bob Ross Art Gallery")
-
-
+    axis.text.x = element_text())
 ```
 
 From this visualization, we can observe several patterns in Bob Ross’s palette choices:
