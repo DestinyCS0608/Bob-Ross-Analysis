@@ -4,7 +4,7 @@
 **Skills:** EDA, data visualization, regression analysis, text analysis\
 **Dataset:** TidyTuesday – Bob Ross Paintings
 
-## Project Overview
+## Overview
 
 Bob Ross is known for a calming, consistent visual style. This project explores how his use of color evolved across the 31 seasons of *The Joy of Painting*. Using episode-level data, I analyze:
 
@@ -14,6 +14,10 @@ Bob Ross is known for a calming, consistent visual style. This project explores 
 -   Thematic patterns in painting titles
 
 The goal is to assess whether Bob Ross’s palette evolved meaningfully over time or remained stylistically stable.
+
+## View Full Case Study
+
+[See full case study here](bob_ross_analysis.html)
 
 ------------------------------------------------------------------------
 
