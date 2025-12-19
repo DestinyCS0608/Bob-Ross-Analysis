@@ -1,0 +1,406 @@
+---
+title: "How Bob Ross Used Color Over Time"
+author: "Destiny Cecchi Samuels"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    theme: cosmo
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(widyr)
+library(knitr)
+library(kableExtra)
+
+```
+
+# Problem Statement
+
+Bob Ross is known for his calming painting style and consistent visual themes. This case study explores how Bob Ross used color across The Joy of Painting series, analyzing color frequency, palette complexity, and trends over time. The goal is to identify patterns in color usage and determine whether Bob Ross’s palettes evolved across seasons.
+
+```{r, echo=FALSE}
+# Read in Data
+bob_ross <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2023/2023-02-21/bob_ross.csv') 
+
+# Color and Hex Dictionary
+color_hex_manual <- tibble(
+  color = c(
+    "Titanium White", "Alizarin Crimson", "Van Dyke Brown", "Cadmium Yellow",
+    "Yellow Ochre", "Phthalo Blue", "Bright Red", "Midnight Black",
+    "Sap Green", "Indian Yellow", "Dark Sienna", "Prussian Blue",
+    "Phthalo Green", "Black Gesso", "Burnt Umber", "Liquid Clear",
+    "Liquid Black", "Indian Red"),
+  hex = c(
+    "#FFFFFF", "#4E1500", "#5A2E1A", "#FFEC00", "#C79B00", "#0F3057",
+    "#DB0000", "#000000", "#0A3410", "#FFD800", "#5F2A1A", "#1F3A5F",
+    "#0B3D2E", "#2B2B2B", "#8A4B2A", "#F5F5F5", "#1A1A1A", "#8B0000"))
+  
+```
+
+```{r, echo=FALSE}
+
+# Pivot Longer
+color_cols <- bob_ross |>
+  select(where(is.logical)) |>
+  colnames()
+
+bob_ross_long <- bob_ross |>
+  arrange(season, episode)|>  # sort by season, then episode
+  mutate(ep_index = row_number())  |> # new sequential index for plotting
+  pivot_longer(
+    cols = all_of(color_cols),
+    names_to = "color",
+    values_to = "used") |>
+  mutate(color = str_replace_all(color, "_", " ")) |>
+  left_join(color_hex_manual, by = "color") |>
+  mutate(hex = str_trim(as.character(hex))) |>
+  select(painting_title, num_colors, season, episode, ep_index, color, used, hex, colors)
+
+bob_ross_long <- bob_ross_long %>%
+  mutate(hex = as.character(hex))
+
+bob_ross_used <- bob_ross_long |> filter(used)
+
+```
+
+# Exploratory Data Analysis
+
+```{r}
+# Summary Stats Table
+summary_stats <- bob_ross |>
+  summarize(
+    `Number of Seasons` = n_distinct(season),
+    `Episodes per Season` = n_distinct(episode),
+    `Number of Paintings` = n(),
+    `Total Colors` = length(color_cols),
+    `Minimum Colors Used` = min(num_colors),
+    `Maximum Colors Used` = max(num_colors),
+    `Average Colors Used` = round(mean(num_colors), 2))
+
+summary_stats_flipped <- summary_stats |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "Metric",
+    values_to = "Value"
+  )
+
+summary_stats_flipped |> kable()
+```
+
+The dataset contains 31 seasons of The Joy of Painting, each consisting of a consistent 13 episodes, for a total of 403 paintings. Across the series, Bob Ross used a palette of 18 distinct colors. Individual paintings used between 1 and 15 colors, with an average of approximately 10.61 colors per episode. This suggests a stable painting style with occasional minimalist and more complex palettes. Notably, one painting used only a single color: Van Dyke Brown.
+
+```{r}
+# Histogram 
+ggplot(bob_ross, aes(num_colors)) +
+  geom_histogram(
+    bins = 15,
+    fill = "skyblue",
+    color = "white"
+) +
+  geom_vline(
+    xintercept = mean(bob_ross$num_colors),
+    linetype = "dashed",
+    color = "red",
+    linewidth = 0.8) +
+  geom_vline(
+  xintercept = median(bob_ross$num_colors),
+  linetype = "dotted",
+  color = "blue",
+  linewidth = 0.8) +
+  labs(
+    title = "Distribution of Colors Used per Bob Ross Painting",
+    x = "Number of Colors",
+    y = "Number of Paintings",
+  subtitle = "Dashed line = mean, dotted line = median") +
+  theme_minimal() 
+
+```
+
+The distribution of palette size is left-skewed, with most paintings using between 12 colors. A small number of episodes use unusually few or many colors, suggesting modest variability. One extreme outlier is only 1 color being used, as mentioned prior, this was double checked and yes one bob Ross painting only used one color.
+
+```{r}
+
+color_counts <- bob_ross_long |>
+  filter(used) |>
+  count(color, sort = TRUE) |>
+  left_join(color_hex_manual, by = "color")  # now hex column exists
+
+# Plot with actual colors
+ggplot(color_counts, aes(x = reorder(color, n), y = n, fill = hex)) +
+  geom_col(aes(color = ifelse(color %in% c("Titanium White", "Liquid Clear"), 
+                       "highlight", NA)),
+           size = 1.2) +  # thickness of border
+  scale_fill_identity() +  # use actual hex colors
+  scale_color_manual(values = c(highlight = "gray"), na.value = NA, guide = "none") + # black border
+  labs(title = "Frequency of Colors in Bob Ross Paintings", x = "Color", y = "Count", color = "") +
+  theme(legend.position = "none") + 
+  coord_flip()+
+  theme_minimal()
+```
+
+This visualization above illustrates the frequency of each color across all episodes, highlighting a small core palette that defines Bob Ross’s artistic style.
+
+```{r, echo=FALSE}
+# Find Core Pallete 
+
+# Count total number of paintings
+total_paintings <- n_distinct(bob_ross$painting_index)
+
+# Count how many paintings each color is used in
+color_usage <- bob_ross_long |>
+  filter(used) |>
+  count(color, sort = TRUE) |>
+  mutate(usage_percent = round(n / total_paintings * 100)) # Round for 
+
+# Define core palette threshold, e.g., ≥80% usage
+core_palette <- color_usage |>
+  filter(usage_percent >= 80) |>
+  pull(color)
+
+```
+
+A small set of colors consistently appears across 80% of paintings, forming a ‘core palette’ that anchors Bob Ross’s style: "Titanium White" - "Alizarin Crimson" - "Van Dyke Brown", "Cadmium Yellow", "Yellow Ochre", "Phthalo Blue", "Bright Red"
+
+Each line represents a single use of a color in a painting, with the paintings arranged chronologically along the X-axis.
+
+```{r, echo=FALSE}
+
+color_order <- bob_ross_long %>%
+  filter(used) %>%
+  count(color, sort = TRUE) %>%
+  pull(color) %>%
+  rev()  # most-used at top
+
+ggplot(bob_ross_long %>% filter(used),
+       aes(x = ep_index, y = factor(color, levels = color_order), fill = hex)) +
+  geom_tile(color = "white") +
+  scale_fill_identity() +
+  scale_x_continuous(
+    breaks = bob_ross_long %>% 
+      filter(episode == 1 & season %% 10 == 0) %>% 
+      pull(ep_index),
+    labels = bob_ross_long %>% 
+      filter(episode == 1 & season %% 10 == 0) %>% 
+      pull(season)) +
+  labs(
+    title = "Bob Ross Paintings: Color Usage by Episode",
+    x = "Season",
+    y = "Color") +
+  theme_minimal() +
+  theme(axis.text.x = element_text()) + 
+  theme(panel.background = element_rect(fill = "#F5F5DC"),  # background of the plotting area
+    plot.background = element_rect(fill = "#F5F5DC"),   # background around the plot
+    axis.text.x = element_text())
+
+
+```
+
+From this visualization, we can observe several patterns in Bob Ross’s palette choices:
+
+By the end of Season 6, Ross gradually shifted from using Burnt Umber toward Dark Sienna.
+
+The plot reveals which colors he used least frequently and highlights the specific episodes where they appeared.
+
+Titanium White and Liquid Clear are visually similar, allowing Ross to substitute one for the other without significantly affecting the overall aesthetic. Similarly, Liquid Black and Black Gesso occasionally served as alternatives to Midnight Black.
+
+Rare colors, such as Indian Red, were used very sparingly; in this case, it appears in only one painting, Autumn Images (Season 22, Episode 1).
+
+# **Palette Complexity Over Time**
+
+**Question:** Did Bob Ross’s palette become more or less complex over the years?
+
+```{r}
+# Linear trend by season
+lm_season <- lm(num_colors ~ season, data = bob_ross)
+summary(lm_season)
+
+# Plot trend
+bob_ross %>%
+  group_by(season) %>%
+  summarize(avg_colors = mean(num_colors), sd_colors = sd(num_colors)) %>%
+  ggplot(aes(x = season, y = avg_colors)) +
+  geom_line() +
+  geom_point() +
+  geom_ribbon(aes(ymin = avg_colors - sd_colors, ymax = avg_colors + sd_colors), alpha = 0.2) +
+  labs(title = "Average Number of Colors per Season", x = "Season", y = "Avg # Colors")
+
+```
+
+-   **Intercept (9.857)**: This is the estimated average number of colors in season 0 (essentially your baseline)
+
+    **Slope (0.0468)**: On average, Bob Ross increased the number of colors by \~0.047 per season. Over 31 seasons, that’s roughly **1.45 extra colors** from the first to the last season.
+
+### Model Fit
+
+**R-squared = 0.031**: Only \~3% of the variance in number of colors is explained by season. So while the trend is statistically significant, it’s not a very strong effect.
+
+**p-value = 0.000382**: The trend is significant; the increase in colors across seasons is unlikely to be due to random chance.
+
+**Residuals**: Mostly centered around 0, with some paintings using far fewer or far more colors than predicted.
+
+**Takeaway**
+
+Bob Ross **slightly increased** the number of colors used as seasons progressed.
+
+Most of the variability in palette size comes from **episode-level differences**, not from the season alone.
+
+# Text Analysis
+
+```{r}
+library(tidytext)
+
+title_words <- bob_ross %>%
+  select(season, painting_title) %>%
+  unnest_tokens(word, painting_title) %>%
+  anti_join(stop_words, by = "word") %>%  # removes common stop words automatically
+  count(word, sort = TRUE)
+
+title_words %>%
+  slice_max(n, n = 20) %>%
+  ggplot(aes(x = reorder(word, n), y = n)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Most Common Words in Bob Ross Painting Titles",
+       x = "Word", y = "Frequency") +
+  theme_minimal()
+
+```
+
+```{r}
+library(wordcloud2)
+
+wordcloud2(bob_ross_words %>% filter(n > 1))
+
+```
+
+To complement the color analysis, a brief text analysis was conducted on Bob Ross’s painting titles. Titles were tokenized into individual words, common stop words were removed, and word frequencies were calculated.
+
+The most frequently occurring words reflect dominant themes in Bob Ross’s work, particularly landscape features such as mountain, winter, and autumn, as well as seasonal and atmospheric elements. This reinforces the visual findings from the color analysis, where natural earth tones and cool blues appear consistently across the series.
+
+One notable result of the text analysis is the high frequency of the word “oval.” This does not refer to a landscape feature, but rather to a recurring compositional style used by Bob Ross, in which scenes were painted within an oval frame or vignette. These “oval” paintings appear repeatedly across multiple seasons, which explains the prominence of the term in painting titles.
+
+The word cloud provides an exploratory visualization of title vocabulary, highlighting the prominence of recurring natural imagery. Together, these results suggest that Bob Ross’s color choices and thematic language align closely, reinforcing a consistent aesthetic and narrative style throughout The Joy of Painting.
+
+```{r}
+word_counts <- title_words %>%
+  count(word, sort = TRUE) %>%
+  filter(n >= 8)   # adjust threshold if needed
+
+```
+
+# Seasonal / Temporal Patterns
+
+QUESTION:
+
+-   Does the number of colors used change across seasons?
+-   Do later seasons show more palette complexity?
+
+Because the distribution of the number of colors used per painting is slightly left-skewed (mean \< median), both nonparametric correlation and count-based regression models are used alongside standard linear regression to assess temporal trends.
+
+### Seasonal Averages
+
+```{r}
+# Seasonal Averages
+season_stats <- bob_ross |>
+  group_by(season) |>
+  summarise(
+    mean_colors = mean(num_colors),
+    sd_colors = sd(num_colors))
+```
+
+```{r}
+ggplot(season_stats, aes(season, mean_colors)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(
+    ymin = mean_colors - sd_colors,
+    ymax = mean_colors + sd_colors
+  )) +
+  theme_minimal() +
+  labs(
+    title = "Average Number of Colors Used per Season",
+    x = "Season",
+    y = "Mean Number of Colors"
+  )
+```
+
+**Interpretation:** Average palette size shows a slight upward trend over time, though variability within seasons remains substantial. This suggests that while Bob Ross gradually expanded his color usage, individual episodes still varied considerably.
+
+### Nonparametric Trend Test
+
+To assess monotonic change without assuming normality, a Kendall rank correlation was used
+
+```{r}
+cor.test(
+  bob_ross$season,
+  bob_ross$num_colors,
+  method = "kendall"
+) # significant 
+
+```
+
+**Result:** The Kendall test indicates a statistically significant positive association between season and palette size, suggesting that later seasons tend to use slightly more colors.
+
+### Regression Analysis
+
+```{r}
+lm_model <- lm(num_colors ~ season, data = bob_ross)
+summary(lm_model)
+
+pois_model <- glm(num_colors ~ season, data = bob_ross, family = poisson())
+summary(pois_model)
+```
+
+A linear regression yielded consistent results, though season explained only \~3% of the variance, suggesting that while the trend is statistically significant, the practical effect size is modest.
+
+Because the response variable is a count and slightly skewed, a Poisson model was also fit: A Poisson regression model was used to assess changes in palette size over time. Results indicate a statistically significant positive effect of season on the expected number of colors used per painting (β = 0.0044, p = 0.0099), corresponding to an approximate 0.44% increase in palette size per season. This result is consistent with the linear model, reinforcing the robustness of the observed trend. These findings suggest a gradual but modest increase in palette complexity across the series.
+
+**TAKEAWAY:** Effect is SMALL but REAL
+
+```{r}
+# Get slope from Poisson model
+r2 <- summary(lm_model)$r.squared
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+mean_colors <- mean(bob_ross$num_colors)
+
+# Create equation text
+eq_text <- paste0("y = ", round(intercept,2), " + ", round(slope,2), " * season\n",
+                  "Mean = ", round(mean_colors,2), ", R² = ", round(r2,3))
+
+ggplot(bob_ross, aes(season, num_colors)) +
+  geom_jitter(alpha = 0.5, width = 0.2) +
+  geom_smooth(method = "lm", method.args = list(family = poisson()), se = FALSE, color = "blue") +
+  geom_hline(
+    yintercept = mean_colors,
+    linetype = "dashed",
+    color = "red"
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Regression of Palette Size on Season",
+    x = "Season",
+    y = "Number of Colors Used",
+    subtitle = paste0("Mean = ", round(mean_colors,2), ", R² = ", round(r2,3)))
+
+
+```
+
+This visualization shows the relationship between season number and the number of colors used per painting. Individual points represent paintings, while the smooth curve reflects a Poisson regression fit appropriate for count data. The dashed line indicates the mean palette size. Although the regression reveals a statistically significant upward trend, the slope is shallow, reinforcing that changes in palette complexity over time are gradual rather than dramatic.
+
+# Conclusion
+
+This case study examined how Bob Ross used color throughout The Joy of Painting, with a focus on palette composition, frequency, and temporal change across seasons. The analysis shows that Ross relied on a highly consistent core palette, anchored by Titanium White and several earth tones, which appeared in the majority of paintings. This stability underscores the importance of technique, layering, and composition in his work rather than frequent changes in color selection.
+
+While palette usage was largely consistent, both descriptive and inferential analyses reveal a small but statistically significant increase in palette complexity over time. Linear, nonparametric, and Poisson regression models all indicate that later seasons tend to use slightly more colors per painting. However, season explains only a modest portion of the total variation, suggesting that most differences in palette size occur at the episode level rather than as part of a strong long-term trend.
+
+Text analysis of painting titles further reinforces these findings. Frequently occurring words such as mountain, winter, and autumn highlight Ross’s persistent focus on natural landscapes, while the prominence of the word oval reflects a recurring compositional format rather than a thematic subject. Together, the text and color analyses suggest a coherent artistic identity that remained stable across decades.
+
+Overall, Bob Ross’s work demonstrates consistency with subtle evolution: a recognizable and disciplined palette paired with gradual experimentation rather than dramatic stylistic shifts. This balance likely contributed to the enduring visual identity and appeal of The Joy of Painting.
