@@ -2,6 +2,8 @@
 title: "How Bob Ross Used Color Over Time"
 author: "Destiny Cecchi Samuels"
 format:
+  gfm:
+    prefer-html: true
   html:
     toc: true
     toc-depth: 2
@@ -19,7 +21,6 @@ library(widyr)
 library(knitr)
 library(kableExtra)
 library(ggplot2)
-
 ```
 
 # Problem Statement
