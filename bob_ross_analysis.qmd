@@ -18,6 +18,7 @@ library(tidyverse)
 library(widyr)
 library(knitr)
 library(kableExtra)
+library(ggplot2)
 
 ```
 
@@ -276,7 +277,7 @@ title_words %>%
 ```{r}
 library(wordcloud2)
 
-wordcloud2(bob_ross_words %>% filter(n > 1))
+wordcloud2(title_words %>% filter(n > 1))
 
 ```
 
@@ -288,16 +289,9 @@ One notable result of the text analysis is the high frequency of the word “ova
 
 The word cloud provides an exploratory visualization of title vocabulary, highlighting the prominence of recurring natural imagery. Together, these results suggest that Bob Ross’s color choices and thematic language align closely, reinforcing a consistent aesthetic and narrative style throughout The Joy of Painting.
 
-```{r}
-word_counts <- title_words %>%
-  count(word, sort = TRUE) %>%
-  filter(n >= 8)   # adjust threshold if needed
-
-```
-
 # Seasonal / Temporal Patterns
 
-QUESTION:
+**QUESTIONS:**
 
 -   Does the number of colors used change across seasons?
 -   Do later seasons show more palette complexity?
@@ -312,22 +306,23 @@ season_stats <- bob_ross |>
   group_by(season) |>
   summarise(
     mean_colors = mean(num_colors),
-    sd_colors = sd(num_colors))
-```
+  sd_colors = sd(num_colors))
 
-```{r}
+library(ggplot2)
+
 ggplot(season_stats, aes(season, mean_colors)) +
-  geom_line() +
-  geom_point() +
+  geom_line(color = "blue") +           # specify a color
+  geom_point(color = "blue") +            
   geom_errorbar(aes(
     ymin = mean_colors - sd_colors,
     ymax = mean_colors + sd_colors
-  )) +
+  ), width = 0.4, color = "black") +  # optional: width for error bars
   theme_minimal() +
   labs(
     title = "Average Number of Colors Used per Season",
     x = "Season",
-    y = "Mean Number of Colors"
+    y = "Mean Number of Colors",
+    subtitle = "With standard deviation error bars for each season"
   )
 ```
 
