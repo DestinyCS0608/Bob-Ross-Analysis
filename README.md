@@ -17,7 +17,7 @@ The goal is to assess whether Bob Ross’s palette evolved meaningfully over tim
 
 ## View Full Case Study
 
-[SEE FULL CASE STUDY]([(https://DestinyCS0608.github.io/Bob-Ross-Analysis/bob_ross_analysis.html))
+[SEE FULL CASE STUDY]((https://DestinyCS0608.github.io/Bob-Ross-Analysis/bob_ross_analysis.html))
 
 ------------------------------------------------------------------------
 
