@@ -17,7 +17,7 @@ The goal is to assess whether Bob Ross’s palette evolved meaningfully over tim
 
 ## View Full Case Study
 
-[See full case study here](bob_ross_analysis.html)
+[See full case study here](bob_ross_analysis.md)
 
 ------------------------------------------------------------------------
 
