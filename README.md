@@ -1,8 +1,3 @@
----
-title: "README"
-output: github_document
----
-
 # 🎨 Bob Ross Color Palette Analysis
 
 **Tools:** R, tidyverse, ggplot2, tidytext\
